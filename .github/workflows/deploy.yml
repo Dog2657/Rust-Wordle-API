@@ -14,7 +14,8 @@ jobs:
         uses: fifsky/ssh-action@v0.0.6
         with:
             command: |
-                    cd /root/Rust-Wordle-Api
+                    cd /Rust-Wordle-Api
+                    ls
                     git pull
                     git status
                     docker-compose up --build -d
