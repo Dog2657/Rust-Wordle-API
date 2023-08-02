@@ -19,7 +19,7 @@ Go to the project directory
 Start the docker compose  
 
 ~~~bash  
-docker-compose up
+  docker-compose up
 ~~~
 
 ## How to add new words  
