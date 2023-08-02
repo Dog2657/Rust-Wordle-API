@@ -1,84 +1,133 @@
 use std::fs::File;
 use std::io::{BufReader, BufRead};
-use rand::Rng;
-use std::sync::Mutex;
-
-use chrono::Duration as Chrono_Duration;
-use cron::Schedule;
-use chrono::Utc;
-use std::str::FromStr;
-
+use chrono::TimeZone;
+use std::io::Write;
+use std::fs;
+use chrono::Datelike;
+use rand::seq::SliceRandom;
 use std::thread;
-use std::time::Duration;
+use rand::thread_rng;
 
 #[macro_use] extern crate rocket;
 
-struct Word {
-    value: String,
+
+struct Date{
+    day: u32,
+    month: u32,
+    year: i32
 }
 
 
-fn get_word_from_index(index: i32) -> String{
-    let file = File::open("words.txt").expect("file not found!");
-    let buf_reader = BufReader::new(file);
+fn get_current_date() -> Date {
+    let current_date = chrono::Utc::now();
 
-    buf_reader
-        .lines()
-        .nth( index as usize )
-        .unwrap_or_else(|| Ok(String::new()))
-        .expect("Error reading line")
-}
-
-fn get_total_words() -> i32 {
-    let file = BufReader::new(File::open("words.txt").expect("Unable to open file"));
-    let mut count  = 0;
-    
-    for _ in file.lines() {
-        count = count + 1;
+    Date {
+        day: current_date.day(), 
+        month: current_date.month(),
+        year: current_date.year(),
     }
-    count
 }
 
-fn get_random_word() -> String {
-    let total_words = get_total_words();
-    let random_index = rand::thread_rng().gen_range(0..(total_words+1));
-    let random_word = get_word_from_index(random_index);
+fn get_date_from_string(string: &str) -> Date{
+    let split: Vec<&str> = string
+    .split("-")
+    .collect();
 
-    random_word
+
+    Date {
+        day: split[0].parse::<u32>().unwrap(), 
+        month: split[1].parse::<u32>().unwrap(),
+        year: split[2].parse::<i32>().unwrap(),
+    }
 }
 
-static CURRENT_WORD: Mutex<Word> = Mutex::new(Word { value: String::new() });
+fn make_shuffle_file(){
+    //Create temp folder (if dosn't exist)
+    fs::create_dir_all("./.temp").unwrap();
+
+    //Create shuffle file
+    let mut file = File::create("./.temp/shuffle").unwrap();
+
+    //-----------------------------//
+
+    let Date {day, month, year} = get_current_date();
+
+    let date_string = format!("{day}-{month}-{year}");
+
+    file.write_all(format!("{}\n\n", date_string).as_bytes()).unwrap();
+
+
+    //-----------------------------//
+
+    //Get words file
+    let words_file = File::open("words.txt").expect("file not found!");
+    let reader = BufReader::new(words_file);
+
+    //Load all words into Vector
+    let mut lines: Vec<String> = reader.lines()
+    .collect::<Result<_, _>>().expect("Vector error");
+
+    //Randomize vector array
+    let mut rng = thread_rng();
+    lines.shuffle(&mut rng);
+
+    let all_lines = lines.join("\n");
+    file.write_all(all_lines.as_bytes()).unwrap();
+}
+
 
 #[get("/")]
-fn get_current_word() -> String {
-    return CURRENT_WORD.lock().unwrap().value.to_string();
+fn get_current_word() -> String{
+    let file = File::open("./.temp/shuffle").expect("file not found!");
+    let reader = BufReader::new(file);
+    let mut lines = reader.lines();
+
+    let today = get_current_date(); 
+    let start_date: Date = match lines.nth(0){
+        Some(line) => get_date_from_string(&line.unwrap()),
+        None => {
+            make_shuffle_file();
+
+            let file = File::open("./.temp/shuffle").expect("file not found!");
+            let date = BufReader::new(file)
+                .lines()
+                .nth(0)
+                .expect("unable to read new file")
+                .unwrap();
+
+            get_date_from_string(&date)
+        }
+    };
+    
+
+    let start_utc_date = chrono::Utc.with_ymd_and_hms(start_date.year, start_date.month, start_date.day, 0, 0, 0).unwrap();
+    let today_utc_date = chrono::Utc.with_ymd_and_hms(today.year, today.month, today.day, 0, 0, 0).unwrap();
+
+    let diff = today_utc_date - start_utc_date;
+
+    let word = match lines.nth(diff.num_days() as usize + 1) {
+        Some(line) => line.unwrap(),
+        None => {
+            make_shuffle_file();
+
+            let file = File::open("./.temp/shuffle").expect("file not found!");
+            BufReader::new(file)
+                .lines()
+                .nth(2)
+                .expect("unable to read new file")
+                .unwrap()
+        }
+    };
+
+    word
+
 }
 
 
 #[launch]
-fn rocket() -> _ {    
-    CURRENT_WORD.lock().unwrap().value = get_random_word();
-
-    thread::spawn(|| {
-        let schedule = Schedule::from_str("0 0 0 * * *").unwrap();
-
-        loop {
-            let next = schedule.upcoming(Utc).next().unwrap();
-            let next_local = next.with_timezone(&chrono::Local) - Chrono_Duration::hours(1);
-            //You must change the "Chrono_Duration::hours(1)" to how far or behind utc your timezone is
-
-            let now = chrono::Local::now();
-            
-            let duration = next_local - now;
-            let std_duration = Duration::from_secs(duration.num_seconds() as u64);
-            
-            thread::sleep(std_duration);
-            {//Code to be run
-                CURRENT_WORD.lock().unwrap().value = get_random_word();
-            }
-            thread::sleep(Duration::from_secs(5));//1 second pause
-        }
-    });
+fn rocket() -> _ {  
+    //Create new shuffle file in the background  
+    thread::spawn(|| { make_shuffle_file(); });
 
     rocket::build()
         .mount("/", routes![get_current_word])
