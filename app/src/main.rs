@@ -1,12 +1,12 @@
-use std::fs::File;
 use std::io::{BufReader, BufRead};
-use chrono::TimeZone;
-use std::io::Write;
-use std::fs;
-use chrono::Datelike;
 use rand::seq::SliceRandom;
-use std::thread;
+use chrono::Datelike;
+use chrono::TimeZone;
 use rand::thread_rng;
+use std::io::Write;
+use std::fs::File;
+use std::thread;
+use std::fs;
 
 #[macro_use] extern crate rocket;
 
@@ -78,7 +78,17 @@ fn make_shuffle_file(){
 
 #[get("/")]
 fn get_current_word() -> String{
-    let file = File::open("./.temp/shuffle").expect("file not found!");
+    let file = match File::open("./.temp/shuffle") {
+        Ok(f) => f,
+        Err(_) => {
+            make_shuffle_file();
+            match File::open("./.temp/shuffle") {
+                Ok(f) => f,
+                Err(err) => panic!("Unable to open file: {:?}", err),
+            }
+        }
+    };
+
     let reader = BufReader::new(file);
     let mut lines = reader.lines();
 
