@@ -1,10 +1,7 @@
-
-  # Rust wordle api 
-  This is a simple rest api for wordle projects.
-  Make in rust with rocket as the framework.
-  Every day at midnight it will pick a random word from the words.txt file.
-
-
+# Rust wordle api 
+This is a simple rest api for wordle projects.
+Make in rust with rocket as the framework.
+Every day at midnight it will pick a random word from the words.txt file.
 
 ## Run Locally  
 Clone the project  
@@ -25,5 +22,7 @@ Start the docker compose
 docker-compose up
 ~~~
 
- 
+## How to add new words  
 
+1. Goto: /app/words.txt
+2. Type the word on a new line
