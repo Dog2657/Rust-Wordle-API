@@ -2,9 +2,14 @@ use std::fs::File;
 use std::io::{BufReader, BufRead};
 use rand::Rng;
 use std::sync::Mutex;
+
+use chrono::Duration as Chrono_Duration;
+use cron::Schedule;
+use chrono::Utc;
+use std::str::FromStr;
+
 use std::thread;
 use std::time::Duration;
-use chrono::prelude::*;
 
 #[macro_use] extern crate rocket;
 
@@ -42,12 +47,6 @@ fn get_random_word() -> String {
     random_word
 }
 
-fn get_time_seconds() -> u32{
-    let local_time = Local::now();
-    (local_time.hour() * 3600) + (local_time.minute() * 60) + local_time.second()
-}
-
-
 static CURRENT_WORD: Mutex<Word> = Mutex::new(Word { value: String::new() });
 
 #[get("/")]
@@ -55,18 +54,31 @@ fn get_current_word() -> String {
     return CURRENT_WORD.lock().unwrap().value.to_string();
 }
 
+
 #[launch]
 fn rocket() -> _ {    
     CURRENT_WORD.lock().unwrap().value = get_random_word();
 
     thread::spawn(|| {
+        let schedule = Schedule::from_str("0 0 0 * * *").unwrap();
+
         loop {
-            CURRENT_WORD.lock().unwrap().value = get_random_word();
-            thread::sleep( Duration::from_secs(60) );
-            thread::sleep( Duration::from_secs( 86400 - (get_time_seconds() as u64) ) );
+            let next = schedule.upcoming(Utc).next().unwrap();
+            let next_local = next.with_timezone(&chrono::Local) - Chrono_Duration::hours(1);
+            //You must change the "Chrono_Duration::hours(1)" to how far or behind utc your timezone is
+
+            let now = chrono::Local::now();
+            
+            let duration = next_local - now;
+            let std_duration = Duration::from_secs(duration.num_seconds() as u64);
+            
+            thread::sleep(std_duration);
+            {//Code to be run
+                CURRENT_WORD.lock().unwrap().value = get_random_word();
+            }
+            thread::sleep(Duration::from_secs(5));//1 second pause
         }
     });
-
 
     rocket::build()
         .mount("/", routes![get_current_word])
