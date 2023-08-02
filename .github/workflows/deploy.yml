@@ -2,8 +2,9 @@ name: CI
 on:
   push:
     branches:
-        - master
-        - main
+      - diabled
+        #- master
+        #- main
 jobs:
   deploy:
     name: "Deploy"
