@@ -19,13 +19,14 @@ impl Fairing for CORS {
             "localhost"
         ];
 
-        let _result = allowed_origins.iter().find(|&orign| request_origin.starts_with(orign));
-        
-        if _result.is_none() {
-            println!("\nCors blocked {}\n", request_origin);
-            return;
+        if request_origin != "" {
+            let _result = allowed_origins.iter().find(|&orign| request_origin.starts_with(orign));
+            
+            if _result.is_none() {
+                println!("\nCors blocked {}\n", request_origin);
+                return;
+            }
         }
-
         response.set_header(Header::new("Access-Control-Allow-Origin", request_origin));
         response.set_header(Header::new("Access-Control-Allow-Methods", "POST, GET, PATCH, OPTIONS"));
         response.set_header(Header::new("Access-Control-Allow-Headers", "*"));
