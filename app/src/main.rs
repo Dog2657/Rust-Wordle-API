@@ -1,3 +1,5 @@
+mod cors;
+
 use std::io::{BufReader, BufRead};
 use rand::seq::SliceRandom;
 use chrono::Datelike;
@@ -7,6 +9,7 @@ use std::io::Write;
 use std::fs::File;
 use std::thread;
 use std::fs;
+use cors::CORS;
 
 #[macro_use] extern crate rocket;
 
@@ -16,6 +19,8 @@ struct Date{
     month: u32,
     year: i32
 }
+
+
 
 
 fn get_current_date() -> Date {
@@ -140,5 +145,6 @@ fn rocket() -> _ {
     thread::spawn(|| { make_shuffle_file(); });
 
     rocket::build()
+        .attach(CORS)
         .mount("/", routes![get_current_word])
 }
