@@ -16,6 +16,7 @@ jobs:
             command: |
                     cd /Rust-Wordle-Api
                     ls
+                    docker-compose down
                     git pull
                     git status
                     docker-compose up --build -d
