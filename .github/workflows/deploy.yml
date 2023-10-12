@@ -18,6 +18,7 @@ jobs:
                     cd Rust-Wordle-Api
                     ls
                     docker-compose down
+                    docker system prune -f
                     git pull
                     git status
                     docker-compose up --build -d
